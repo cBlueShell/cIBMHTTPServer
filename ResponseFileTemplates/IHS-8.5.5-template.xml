@@ -1,0 +1,34 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<agent-input>
+  <variables>
+    <variable name='sharedLocation' value='C:\IBM\IMShared'/>
+    <variable name='httpPort' value='80'/>
+    <variable name='serviceStartType' value='auto'/>
+    <variable name='useServiceAcc' value='false'/>
+    <variable name='serviceAccUsername' value=''/>
+    <variable name='serviceAccPassword' value=''/>
+    <variable name='ihsInstallLocation' value='C:\IBM\HTTPServer'/>
+    <variable name='ihsFeatures' value='core.feature,arch.32bit'/>
+  </variables>
+  <server>
+  </server>
+  <profile id='IBM HTTP Server V8.5' installLocation='${ihsInstallLocation}'>
+    <data key='cic.selector.arch' value='x86'/>
+    <data key='cic.selector.nl' value='en'/>
+    <data key='user.import.profile' value='false'/>
+    <data key='user.ihs.installHttpService' value='true'/>
+    <data key='user.ihs.http.server.service.name' value='IBM HTTP Server V8.5'/>
+    <data key='user.ihs.http.server.service.name.key' value='IBMHTTPServerV8.5'/>
+    <data key='user.ihs.httpPort' value='${httpPort}'/>
+    <data key='user.ihs.win.serverServiceLogOnAsLocalSystem' value='${useServiceAcc}'/>
+    <data key='user.ihs.win.serverServiceUser' value='${serviceAccUsername}'/>
+    <data key='user.ihs.win.serverServicePassword' value='${serviceAccPassword}'/>
+    <data key='user.ihs.win.serverServiceStartType' value='${serviceStartType}'/>
+  </profile>
+  <install>
+    <!-- IBM HTTP Server for WebSphere Application Server 8.5.5.0 -->
+    <offering profile='IBM HTTP Server V8.5' id='com.ibm.websphere.IHS.v85' version='8.5.5000.20130514_1044' features='${ihsFeatures}'/>
+  </install>
+  <preference name='com.ibm.cic.common.core.preferences.eclipseCache' value='${sharedLocation}'/>
+  <preference name='offering.service.repositories.areUsed' value='false'/>
+</agent-input>
