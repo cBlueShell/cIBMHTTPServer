@@ -47,14 +47,14 @@ DSC Resource or by leveraging the [x7Zip DSC Module](https://www.powershellgalle
 ## Versions
 
 ### 1.1.0
-* New DSC resources 
-    - cIBMHTTPServerSSLCertificate
+* New DSC resources
     - cIBMHTTPServerPluginConfig
     - cIBMWASManagedWebServer
 
 ### 1.0.0
 * Initial release with the following resources 
     - cIBMHTTPServer
+    - cIBMHTTPServerSSLCertificate
 
 ## Testing
 
