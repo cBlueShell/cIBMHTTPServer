@@ -46,6 +46,10 @@ DSC Resource or by leveraging the [x7Zip DSC Module](https://www.powershellgalle
 
 ## Versions
 
+### 1.1.1
+* New DSC resources
+    - cIBMHTTPServerFixpack
+
 ### 1.1.0
 * New DSC resources
     - cIBMHTTPServerPluginConfig
