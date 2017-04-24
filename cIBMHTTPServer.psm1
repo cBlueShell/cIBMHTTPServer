@@ -182,6 +182,121 @@ class cIBMHTTPServer {
 }
 
 [DscResource()]
+class cIBMHTTPServerFixpack {
+    [DscProperty(Mandatory)]
+    [Ensure] $Ensure
+    
+    [DscProperty(Key)]
+    [String] $Version
+    
+    [DscProperty()]
+    [String] $InstallationDirectory = "C:\IBM\HTTPServer\"
+    
+    [DscProperty(Mandatory)]
+    [PSCredential] $WebSphereAdministratorCredential
+    
+    [DscProperty()]
+    [String[]] $SourcePath
+    
+    [DscProperty()]
+    [PSCredential] $SourcePathCredential
+
+    <#
+        Installs IBM HTTP Server Fixpack
+    #>
+    [void] Set () {
+        try {
+            if ($this.Ensure -eq [Ensure]::Present) {
+                Write-Verbose -Message "Starting installation of IBM HTTP Server Fixpack"
+                $sevenZipExe = Get-SevenZipExecutable
+                if (!([string]::IsNullOrEmpty($sevenZipExe)) -and (Test-Path($sevenZipExe))) {
+                    $versionObj = (New-Object -TypeName System.Version -ArgumentList $this.Version)
+                    $installed = Install-IBMHTTPServerFixpack -Version $versionObj `
+                        -InstallationDirectory $this.InstallationDirectory `
+                        -SourcePath $this.SourcePath -SourcePathCredential $this.SourcePathCredential `
+                        -WebSphereAdministratorCredential $this.WebSphereAdministratorCredential
+                    if ($installed) {
+                        Write-Verbose ("IBM HTTP Server Fixpack " + $this.Version + " Installed Successfully")
+                    } else {
+                        Write-Error "Unable to install the IBM HTTP Server Fixpack, please check installation logs for more information"
+                    }
+                } else {
+                    Write-Error "IBM HTTP Server Fixpack installation depends on 7-Zip, please ensure 7-Zip is installed first"
+                }
+            } else {
+                Write-Verbose "Uninstalling IBM HTTP Server Fixpack (Not Yet Implemented)"
+            }
+        } catch {
+            Write-Error -ErrorRecord $_ -ErrorAction Stop
+        }
+    }
+
+    <#
+        Performs test to check if IHS fixpack is alreay installed
+    #>
+    [bool] Test () {
+        Write-Verbose "Checking for IBM HTTP Server Fixpack installation"
+        if(Test-IBMPSDscSequenceDebug){return $True}
+        $ihsConfiguredCorrectly = $false
+        $ihsRsrc = $this.Get()
+        
+        if (($ihsRsrc.Ensure -eq $this.Ensure) -and ($ihsRsrc.Ensure -eq [Ensure]::Present)) {
+            if ($ihsRsrc.Version -eq $this.Version) {
+                if (((Get-Item($ihsRsrc.InstallationDirectory)).Name -eq 
+                    (Get-Item($this.InstallationDirectory)).Name) -and (
+                    (Get-Item($ihsRsrc.InstallationDirectory)).Parent.FullName -eq 
+                    (Get-Item($this.InstallationDirectory)).Parent.FullName)) {
+                    if ($ihsRsrc.IHSEdition -eq $this.IHSEdition) {
+                        Write-Verbose "IBM HTTP Server Fixpack is installed"
+                        $ihsConfiguredCorrectly = $true
+                    }
+                }
+            }
+        } elseif (($ihsRsrc.Ensure -eq $this.Ensure) -and ($ihsRsrc.Ensure -eq [Ensure]::Absent)) {
+            $ihsConfiguredCorrectly = $true
+        }
+
+        if (!($ihsConfiguredCorrectly)) {
+            Write-Verbose "IBM HTTP Server Fixpack not configured correctly"
+        }
+        
+        return $ihsConfiguredCorrectly
+    }
+
+    <#
+        Leverages versionInfo.bat to get installed fixpack
+    #>
+    [cIBMHTTPServerFixpack] Get () {
+        $RetEnsure = [Ensure]::Absent
+        $RetVersion = $null
+        
+        $versionObj = (New-Object -TypeName System.Version -ArgumentList $this.Version)
+        $RetInsDir = $this.InstallationDirectory
+        
+        if($RetInsDir -and (Test-Path($RetInsDir))) {
+            $VersionInfo = Get-IBMWebSphereProductVersionInfo $RetInsDir
+            if($VersionInfo -and ($VersionInfo.Products) -and ($VersionInfo.Products["IHS"])) {
+                Write-Verbose "IBM HTTP Server is Present"
+                $RetEnsure = [Ensure]::Present
+                $RetVersion = $VersionInfo.Products["IHS"].Version
+            } else {
+                Write-Warning "Unable to retrieve version information from the IBM HTTP Server installed"
+            }
+        } else {
+            Write-Verbose "IBM HTTP Server is NOT Present"
+        }
+
+        $returnValue = @{
+            InstallationDirectory = $RetInsDir
+            Version = $RetVersion
+            Ensure = $RetEnsure
+        }
+
+        return $returnValue
+    }
+}
+
+[DscResource()]
 class cIBMHTTPServerSSLCertificate {
     
     [DscProperty(Mandatory)]

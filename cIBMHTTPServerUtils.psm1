@@ -114,6 +114,58 @@ Function Install-IBMHTTPServer() {
 }
 
 ##############################################################################################################
+# Install-IBMHTTPServerFixpack
+#   Installs IBM HTTP Server Fixpack
+##############################################################################################################
+Function Install-IBMHTTPServerFixpack() {
+    [CmdletBinding(SupportsShouldProcess=$False)]
+    param (
+        [parameter(Mandatory=$false)]
+        [Version] $Version = "8.5.0.0",
+        
+        [parameter(Mandatory = $true)]
+		[String] $InstallationDirectory,
+        
+        [parameter(Mandatory = $true)]
+        [PSCredential] $WebSphereAdministratorCredential,
+
+    	[parameter(Mandatory = $true)]
+		[String[]] $SourcePath,
+
+        [PSCredential] $SourcePathCredential
+	)
+    
+    [string] $productId = $null
+    if ($Version.ToString(2) -eq "8.5") {
+        $productId = "com.ibm.websphere.IHS.v85"
+    } else {
+        Write-Error "Fixpack version not supported at this time"
+    }
+
+    [bool] $updated = $false
+    [string] $httpServerDir = $InstallationDirectory
+    
+    # Disable the WAS services
+    Get-Service -Name "IBMHTTPServerV8.5" | Stop-Service -PassThru | Set-Service -StartupType disabled
+    
+    # Stop all servers
+    $fileLocked = Wait-AllFileReleased (Join-Path $httpServerDir "bin")
+    
+    if($fileLocked){
+        Write-Error "File Locked IBMHTTPServerFixpack installation Aborted"
+    }
+    $updated = Install-IBMProductViaCmdLine -ProductId $productId -InstallationDirectory $httpServerDir `
+        -SourcePath $SourcePath -SourcePathCredential $SourcePathCredential -ErrorAction Stop
+    
+    if ($updated) {        
+        # Enable the IHS service and Start Server
+        Get-Service -Name "IBMHTTPServerV8.5" | Start-Service -PassThru | Set-Service -StartupType Manual
+    }
+    
+    Return $updated
+}
+
+##############################################################################################################
 # Start-IBMHTTPServer
 #   Starts the IBM HTTP Server
 ##############################################################################################################
