@@ -9,7 +9,7 @@
 RootModule = 'cIBMHTTPServer.psm1'
 
 # Version number of this module.
-ModuleVersion = '1.1.1'
+ModuleVersion = '1.1.2'
 
 # ID used to uniquely identify this module
 GUID = 'd65b8f04-8954-462c-bc73-15b4e479d50f'
@@ -30,7 +30,7 @@ DscResourcesToExport = @(
 )
 
 # Author of this module
-Author = 'Denny Pichardo, Juanyong Zhang'
+Author = 'Denny Pichardo, Juanyong Zhang, Adam Kriklewicz'
 
 # Company or vendor of this module
 #CompanyName = 'Unknown'
