@@ -49,8 +49,8 @@ PowerShellVersion = '5.0'
 
 # Modules that must be imported into the global environment prior to importing this module
 RequiredModules = @(
-    @{ ModuleName = 'cIBMInstallationManager'; RequiredVersion = '1.0.7'},
-    @{ ModuleName = 'cIBMWebSphereAppServer'; RequiredVersion = '1.1.3'}
+    @{ ModuleName = 'cIBMInstallationManager'; ModuleVersion = '1.1.0'},
+    @{ ModuleName = 'cIBMWebSphereAppServer'; ModuleVersion = '1.3.0'}
 )
 
 # Name of the Windows PowerShell host required by this module
@@ -110,7 +110,7 @@ PrivateData = @{
         # IconUri = ''
 
         # ReleaseNotes of this module
-        ReleaseNotes = ''
+        ReleaseNotes = 'Initial Release'
 
     } # End of PSData hashtable
 

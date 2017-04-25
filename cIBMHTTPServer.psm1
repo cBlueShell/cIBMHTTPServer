@@ -1,16 +1,7 @@
 # Import IBM HTTP Server Utils Module
+Using Module cIBMInstallationManager
+Import-Module cIBMWebSphereAppServer -ErrorAction Stop
 Import-Module $PSScriptRoot\cIBMHTTPServerUtils.psm1 -ErrorAction Stop
-
-enum Ensure {
-    Absent
-    Present
-}
-
-enum StartupType {
-    Automatic
-    Manual
-    Disabled
-}
 
 <#
    DSC resource to manage the installation of IBM HTTP Server.
@@ -20,164 +11,90 @@ enum StartupType {
 #>
 
 [DscResource()]
-class cIBMHTTPServer {
-    
-    [DscProperty(Mandatory)]
-    [Ensure] $Ensure
-    
-    [DscProperty(Key)]
-    [String] $Version
-    
+class cIBMHTTPServer : cIBMProductInstall {
+
     [DscProperty()]
     [Int] $HTTPPort = 80
-    
-    [DscProperty()]
-    [String] $InstallationDirectory = "C:\IBM\HTTPServer"
-    
+
     [DscProperty()]
     [String] $IHSPluginInstallLocation = "C:\IBM\WebSphere\Plugins"
     
     [DscProperty()]
     [String] $ToolBoxInstallLocation = "C:\IBM\WebSphere\Toolbox"
-    
-    [DscProperty()]
-    [String] $IMSharedLocation = "C:\IBM\IMShared"
-    
-    [DscProperty()]
-    [StartupType] $StartupType = [StartupType]::Automatic
-    
-    [DscProperty()]
-    [PSCredential] $WindowsServiceAccount
-    
-    [DscProperty()]
-    [String] $InstallMediaConfig
-    
-    [DscProperty()]
-    [String] $ResponseFileTemplate
 
-    [DscProperty()]
-    [String] $SourcePath
-    
     [DscProperty()]
     [bool] $PlusPluginAndToolBox = $true
-    
-    
-    [DscProperty()]
-    [System.Management.Automation.PSCredential] $SourcePathCredential
-    
-    
 
-    <#
-        Installs IBM HTTP Server
-    #>
-    [void] Set () {
-        try {
-            if ($this.Ensure -eq [Ensure]::Present) {
-                Write-Verbose -Message "Starting installation of IBM HTTP Server"
-                $ihsVersion = $this.Version
-                if (!($this.InstallMediaConfig)) {
-                    $this.InstallMediaConfig = Join-Path -Path $PSScriptRoot -ChildPath "InstallMediaConfig\IHS-$ihsVersion.xml"
-                }
-                if (!($this.ResponseFileTemplate)) {
-                	if($this.PlusPluginAndToolBox){
-	                    $this.ResponseFileTemplate = Join-Path -Path $PSScriptRoot -ChildPath "ResponseFileTemplates\IHS-Plus-Plugin-$ihsVersion-template.xml"
-                	}else{
-	                    $this.ResponseFileTemplate = Join-Path -Path $PSScriptRoot -ChildPath "ResponseFileTemplates\IHS-$ihsVersion-template.xml"
-                	}
-                }
-                $installed = Install-IBMHTTPServer `
-			                	-InstallMediaConfig $this.InstallMediaConfig `
-			                    -ResponseFileTemplate $this.ResponseFileTemplate `
-			                    -InstallationDirectory $this.InstallationDirectory `
-			                    -IHSPluginInstallLocation $this.IHSPluginInstallLocation `
-			                    -ToolBoxInstallLocation $this.ToolBoxInstallLocation `
-			                    -HTTPPort $this.HTTPPort `
-			                    -StartupType $this.StartupType `
-			                    -WindowsServiceAccount $this.WindowsServiceAccount `
-			                    -IMSharedLocation $this.IMSharedLocation `
-			                    -SourcePath $this.SourcePath `
-			                    -SourcePathCredential $this.SourcePathCredential
-                if ($installed) {
-                    Write-Verbose "IBM HTTP Server Installed Successfully"
-                } else {
-                    Write-Error "Unable to install IBM HTTP Server, please check installation logs for more information"
-                }
-            } else {
-                Write-Verbose "Uninstalling IBM HTTP Server (Not Yet Implemented)"
+    cIBMHTTPServer() {
+        $this.ProductName = "IHS"
+        $this.BaseDSCPath = $PSScriptRoot
+    }
+
+    [Void] PreSet() {
+        Write-Warning "PreSet Called"
+        $this.CustomVariables = @{
+            "ihsPluginInstallLocation" = $this.IHSPluginInstallLocation;
+            "toolBoxInstallLocation" = $this.ToolBoxInstallLocation;
+            "httpPort" = $this.HTTPPort
+        }
+        if ($this.StartupType -eq [StartupType]::Automatic) {
+            $this.CustomVariables.Add("serviceStartType", "auto")
+        } elseif ($this.StartupType -eq [StartupType]::Manual) {
+            $this.CustomVariables.Add("serviceStartType", "demand")
+        }
+        if ($this.WindowsServiceAccount) {
+            $this.CustomVariables.Add("serviceAccUsername", $this.WindowsServiceAccount.UserName)
+            $this.CustomVariables.Add("serviceAccPassword", $this.WindowsServiceAccount)
+        } else {
+            $this.CustomVariables.Add("useServiceAcc", "true")
+        }
+        
+        $ihsVersion = $this.Version
+        if (!($this.ResponseFileTemplate)) {
+            if ($this.PlusPluginAndToolBox) {
+                $this.ResponseFileTemplate = Join-Path -Path $PSScriptRoot -ChildPath "ResponseFileTemplates\IHS-Plus-Plugin-$ihsVersion-template.xml"
             }
-        } catch {
-            Write-Error -ErrorRecord $_ -ErrorAction Stop
         }
     }
 
-    <#
-        Performs test to check if IHS is in the desired state, includes 
-        validation of installation directory and version
-    #>
-    [bool] Test () {
-        Write-Verbose "Checking for IBM HTTP Server installation"
-        if(Test-IBMPSDscSequenceDebug){return $True}
-        $ihsConfiguredCorrectly = $false
-        $ihsRsrc = $this.Get()
-        
-        if (($ihsRsrc.Ensure -eq $this.Ensure) -and ($ihsRsrc.Ensure -eq [Ensure]::Present)) {
-            $sameVersion = ($ihsRsrc.Version -eq $this.Version)
-            if (!($sameVersion)) {
-                $currVersionObj = (New-Object -TypeName System.Version -ArgumentList $ihsRsrc.Version)
-                $newVersionObj = (New-Object -TypeName System.Version -ArgumentList $this.Version)
-                $sameVersion = (($currVersionObj.ToString(3)) -eq ($newVersionObj.ToString(3)))
-            }
-            if ($sameVersion) {
-                if (((Get-Item($ihsRsrc.InstallationDirectory)).Name -eq 
-                    (Get-Item($this.InstallationDirectory)).Name) -and (
-                    (Get-Item($ihsRsrc.InstallationDirectory)).Parent.FullName -eq 
-                    (Get-Item($this.InstallationDirectory)).Parent.FullName)) {
-                    Write-Verbose "IBM HTTP Server is installed and configured correctly"
-                    $ihsConfiguredCorrectly = $true
-                }
-            }
-        } elseif (($ihsRsrc.Ensure -eq $this.Ensure) -and ($ihsRsrc.Ensure -eq [Ensure]::Absent)) {
-            $ihsConfiguredCorrectly = $true
-        }
-
-        if (!($ihsConfiguredCorrectly)) {
-            Write-Verbose "IBM HTTP Server not configured correctly"
-        }
-        
-        return $ihsConfiguredCorrectly
+    [Void] PostSet() {
+        Write-Warning "PostSet Called"
     }
 
-    <#
-        Leverages the information stored in the registry to populate the properties of an existing
-        installation of IHS
-    #>
-    [cIBMHTTPServer] Get () {
-        $RetEnsure = [Ensure]::Absent
-        $RetVersion = $null
-        
+    [Version] GetIBMProductVersion() {
+        Write-Warning "GetIBMProductVersion called"
+        [Version] $RetVersion = $null
+        $VersionInfo = Get-IBMWebSphereProductVersionInfo ($this.GetIBMProductInstallLocation())
+        if($VersionInfo -and ($VersionInfo.Products) -and ($VersionInfo.Products[$this.ProductName])) {
+            $verString = $VersionInfo.Products[$this.ProductName].Version
+            if ($verString) {
+                $RetVersion = New-Object -TypeName System.Version -ArgumentList $verString
+            }
+        }
+        Return $RetVersion
+    }
+
+    [String] GetIBMProductInstallLocation() {
+        Write-Warning "GetIBMProductInstallLocation called"
         $versionObj = (New-Object -TypeName System.Version -ArgumentList $this.Version)
         $RetInsDir = Get-IBMHTTPServerInstallLocation $versionObj
-        
-        if($RetInsDir -and (Test-Path($RetInsDir))) {
-            $VersionInfo = Get-IBMWebSphereProductVersionInfo $RetInsDir
-            if($VersionInfo -and ($VersionInfo.Products) -and ($VersionInfo.Products["IHS"])) {
-                Write-Verbose "IBM HTTP Server is Present"
-                $RetEnsure = [Ensure]::Present
-                $RetVersion = $VersionInfo.Products["IHS"].Version
-            } else {
-                Write-Warning "Unable to retrieve version information from the IBM HTTP Server installed"
-            }
+        Return $RetInsDir
+    }
+
+    [cIBMHTTPServer] Get () {
+        Write-Warning "Get called"
+        $CurrentRsrc = [cIBMHTTPServer]::new()
+        $BaseRsrc = ([cIBMProductInstall]$this).Get()
+        $CurrentRsrc.Ensure = $BaseRsrc.Ensure
+        $CurrentRsrc.InstallationDirectory = $BaseRsrc.InstallationDirectory
+        $CurrentRsrc.Version = $BaseRsrc.Version
+        if ($CurrentRsrc.Ensure -eq [Ensure]::Present) {
+            Write-Warning "Retrieve other stuff"
         } else {
-            Write-Verbose "IBM HTTP Server is NOT Present"
+            Write-Warning "Don't Retrieve other stuff"
+            $CurrentRsrc.HTTPPort = 90
         }
-
-        $returnValue = @{
-            InstallationDirectory = $RetInsDir
-            Version = $RetVersion
-            Ensure = $RetEnsure
-        }
-
-        return $returnValue
+        return $CurrentRsrc
     }
 }
 
